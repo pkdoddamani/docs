@@ -3,7 +3,9 @@ title: "B20 Native Token Standard"
 description: "B20 is Base's native token standard - designed for stablecoin issuers, real-world asset (RWA) and equity issuers, and long-tail token creators."
 ---
 
-B20 is the Base ecosystem's own version of [ERC-20](https://eips.ethereum.org/EIPS/eip-20). It ships with a built-in compliance toolkit: transfer policies, freeze-and-seize, role-based access control, memos, and supply caps. The full interface specs are available in the [Base Standard Library](https://github.com/base/base-std) repository.
+B20 is the Base ecosystem's own version of [ERC-20](https://eips.ethereum.org/EIPS/eip-20). It ships with a built-in compliance toolkit: transfer policies, freeze-and-seize, role-based access control, memos, and supply caps. The full interface specs are available in the [Base Standard Library](https://github.com/base/base-std/tree/main) repository.
+
+To deploy your first B20 token, see the [Launch a B20 Token](/get-started/launch-b20-token) quickstart.
 
 B20 supports two variants:
 
@@ -17,8 +19,10 @@ B20 supports two variants:
 B20 tokens are implemented as **Rust precompiles** rather than EVM smart contracts, making them faster, cheaper, and more native to the chain. All tokens are deployed via the singleton B20Factory precompile.
 
 <Check>
-B20 implements the full ERC-20 standard surface with complete selector parity - it is a drop-in replacement for existing tooling and integrations.
+B20 is a superset of ERC-20. Every ERC-20 call (`transfer`, `transferFrom`, `approve`, `balanceOf`, `allowance`, and the standard events) behaves exactly as the standard specifies, so existing ERC-20 tooling and integrations work against B20 with no changes.
 </Check>
+
+B20 adds methods that ERC-20 does not include: memos, mint/burn, policy gating, granular pause, and ERC-2612 `permit`. These extend ERC-20 without altering it - every ERC-20 method exists on B20, but the reverse does not hold. For the complete ABIs, see the [interface definitions](https://github.com/base/base-std/tree/main/src/interfaces) in the Base Standard Library.
 
 ## Roles Model
 
@@ -168,7 +172,7 @@ B20 implements ERC-2612 (signed approvals) using an EIP-712 domain shaped as `(n
 
 ## Factory
 
-All B20 tokens are created through the singleton B20Factory precompile via `createB20(variant, salt, params, initCalls)`.
+All B20 tokens are created through the singleton B20Factory precompile via `createB20(variant, salt, params, initCalls)`. In `base-std` it is exposed as `StdPrecompiles.B20_FACTORY`.
 
 | Parameter | Description |
 |-----------|-------------|
@@ -187,7 +191,7 @@ B20 addresses are deterministic and encode the variant directly:
 [10-byte B20 prefix][1-byte variant][9-byte keccak256(deployer, salt)]
 ```
 
-The variant is recoverable from the address alone without an RPC call. Helper functions `getB20Address(variant, deployer, salt)`, `isB20(addr)`, and `isB20Initialized(addr)` are available on the factory.
+The variant is recoverable from the address alone without an RPC call — inspect byte 10 (zero-indexed) to identify the token type. Helper functions `getB20Address(variant, deployer, salt)`, `isB20(addr)`, and `isB20Initialized(addr)` are available on the factory.
 
 ### initCalls Semantics
 
@@ -198,6 +202,13 @@ The variant is recoverable from the address alone without an RPC call. Helper fu
 - Token invariants (supply cap, etc.) are never bypassed.
 
 ## Variants
+
+Each variant is identified by a 1-byte value encoded directly in the token's address (see [Address Derivation](#address-derivation)):
+
+| Variant | Byte |
+|---------|------|
+| `ASSET` | `0x00` |
+| `STABLECOIN` | `0x01` |
 
 ### Asset
 
@@ -241,4 +252,14 @@ An arbitrary key/value store for issuer-defined on-chain metadata.
 The fixed-decimals, fiat-backed carveout. Decimals are hard-wired to `6` and are not configurable.
 
 Adds `currency()`, which returns an ISO-style currency code string (e.g. `"USD"`, `"EUR"`). The code is set once at creation via `B20StablecoinCreateParams.currency`, restricted to characters `A`-`Z` only. It is self-declared and not verified against any external registry.
+
+## Precompile addresses
+
+These addresses are identical on every network where B20 is active (Mainnet, Base Sepolia, Vibenet, and local `base-anvil`).
+
+| Precompile | Address |
+|---|---|
+| [B20Factory](#factory) | `0xB20f000000000000000000000000000000000000` |
+| Activation Registry | `0x8453000000000000000000000000000000000001` |
+| [Policy Registry](#policy-registry) | `0x8453000000000000000000000000000000000002` |
 
